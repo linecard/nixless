@@ -1,18 +1,26 @@
+arch := 'arm64'
+
 [private]
 default:
   just --list
 
+# load image(s) into docker
 load:
-  cat image.tar.gz | docker load
+  #!/usr/bin/env bash
+  images=$(ls *.tar.gz)
+  for image in ${images}; do
+    docker load < ${image}
+  done
 
-image: manifest
+# build OCI-compliant image
+build image tag arch=arch: (manifest image tag arch)
   #!/usr/bin/env bash
   cd image
   rm -rf layer
-  tar -czvf ../image.tar.gz *
+  tar -czvf ../{{image}}-{{tag}}.tar.gz *
 
 [private]
-manifest: config
+manifest image tag arch: (config image arch)
   #!/usr/bin/env bash
   cd image
   layer_digest=$(sha256sum < layer.tar.gz | sed 's/  -//')
@@ -23,7 +31,7 @@ manifest: config
   [
     {
       "config": "config.json",
-      "repoTags": ["hello:latest"],
+      "repoTags": ["{{image}}:{{tag}}"],
       "layers": [
         "layer.tar.gz"
       ]
@@ -32,7 +40,7 @@ manifest: config
   EOF
 
 [private]
-config: layer
+config image arch: (layer image arch)
   #!/usr/bin/env bash
   cd image
   diff_digest=$(gunzip < layer.tar.gz | sha256sum | sed 's/  -//')
@@ -42,7 +50,7 @@ config: layer
     "os": "linux",
     "config": {
       "Env": ["PATH=/bin"],
-      "Entrypoint": ["hello"]
+      "Entrypoint": ["{{image}}"]
     },
     "rootfs": {
       "type": "layers",
@@ -52,27 +60,26 @@ config: layer
   EOF
 
 [private]
-layer: build
+layer image arch: (binary image arch)
   #!/usr/bin/env bash
   cd image/layer
   tar -czvf ../layer.tar.gz *
 
 [private]
-build: tree 
+binary image arch: tree 
   #!/usr/bin/env bash
   cd src
-  GOOS=linux \
-    GOARCH=arm64 \
-    go build -o ../image/layer/bin/hello
+  GOOS=linux GOARCH={{arch}} \
+    go build -o ../image/layer/bin/{{image}}
 
 [private]
 tree: 
   #!/usr/bin/env bash
   rm -rf image
   mkdir -p image/layer && cd image/layer
-  mkdir bin dev etc proc sys
+  mkdir bin # dev etc proc sys
 
 [private]
 clean:
   rm -rf image
-  rm -rf image.tar.gz
+  rm -rf *.tar.gz
