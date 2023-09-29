@@ -1,4 +1,3 @@
 # nixless
 
-`derive`:
-`base a concept on a logical extension or modification of (another concept, like Nix)`
+_Just_ derive.
