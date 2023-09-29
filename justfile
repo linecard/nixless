@@ -18,6 +18,8 @@ build image tag arch=arch: (manifest image tag arch)
   cd image
   rm -rf layer
   tar -czvf ../{{image}}-{{tag}}.tar.gz *
+  cd ../
+  rm -rf image
 
 [private]
 manifest image tag arch: (config image arch)
@@ -68,9 +70,8 @@ layer image arch: (binary image arch)
 [private]
 binary image arch: tree 
   #!/usr/bin/env bash
-  cd src
   GOOS=linux GOARCH={{arch}} \
-    go build -o ../image/layer/bin/{{image}}
+    go build -o image/layer/bin/{{image}}
 
 [private]
 tree: 
@@ -81,5 +82,4 @@ tree:
 
 [private]
 clean:
-  rm -rf image
   rm -rf *.tar.gz
