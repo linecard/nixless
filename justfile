@@ -14,7 +14,21 @@ default:
 # # build OCI-compliant image
 # # build image tag: (manifest image tag)
 
-oci: list
+oci: clean shape
+
+shape: index
+  #!/usr/bin/env bash
+  cd image
+  mkdir -p blobs/sha256
+  mv *.tar.gz blobs/sha256/
+  mv *.json blobs/sha256/
+  mv blobs/sha256/index.json .
+  for file in $(find blobs/sha256 -type f); do
+    digest=$(sha256sum < $file | sed 's/  -//')
+    mv $file blobs/sha256/$digest
+  done
+
+index: list
   #!/usr/bin/env bash
   cd image
   list_digest=$(sha256sum < manifest-list.json | sed 's/  -//')
@@ -120,27 +134,7 @@ manifests: layers
       }
     ]
   EOF
-  done  
-
-# [private]
-# configs image:
-#   #!/usr/bin/env bash
-#   cd image
-#   diff_digest=$(gunzip < layer.tar.gz | sha256sum | sed 's/  -//')
-#   cat <<-EOF > config.json
-#   {
-#     "architecture": "{{arch}}",
-#     "os": "linux",
-#     "config": {
-#       "Env": ["PATH=/bin"],
-#       "Entrypoint": ["app"]
-#     },
-#     "rootfs": {
-#       "type": "layers",
-#       "diff_ids": ["sha256:${diff_digest}"]
-#     }
-#   }
-#   EOF
+  done
 
 [private]
 layers: build
