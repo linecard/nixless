@@ -1,0 +1,22 @@
+name: nixless
+description: What if you just derove?
+inputs:
+  image:
+    description: Image name (includes registry)
+    required: true
+  tag:
+    description: Image tag
+    required: true
+  # platforms:
+  #   description: The platforms to build for
+  #   default: amd64,arm64
+  #   required: true
+runs:
+  using: "composite"
+  steps:
+  - run: curl https://just.systems/install.sh | sudo bash -s -- --to /usr/local/bin
+    shell: bash
+  - run: just build ${{ inputs.image }} ${{ inputs.tag }}
+    shell: bash
+  - run: just load ${{ inputs.image }} ${{ inputs.tag }}
+    shell: bash
