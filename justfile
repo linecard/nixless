@@ -2,20 +2,19 @@
 default:
   just --list
 
-# # load image(s) into docker
-# load image tag:
-#   docker load < image.tar.gz
-#   docker tag {{image}}:{{tag}} {{image}}:latest
+# build and publish the multi-architecture image
+publish registry image tag: build
+  #!/usr/bin/env bash
+  skopeo \
+    --insecure-policy \
+    copy --all \
+    --format oci \
+    oci://$(pwd)/image docker://{{registry}}/{{image}}:{{tag}}
 
-# publish image tag:
-#   #!/usr/bin/env bash
-  
+# build the multi-architecture image
+build: clean shape
 
-# # build OCI-compliant image
-# # build image tag: (manifest image tag)
-
-oci: clean shape
-
+[private]
 shape: index
   #!/usr/bin/env bash
   cd image
@@ -28,12 +27,13 @@ shape: index
     mv $file blobs/sha256/$digest
   done
 
+[private]
 index: list
   #!/usr/bin/env bash
   cd image
   list_digest=$(sha256sum < manifest-list.json | sed 's/  -//')
   list_size=$(stat -f %z manifest-list.json)
-  cat <<-EOF > index.json
+  cat <<-EOF | jq -c | tr -d '\n' > index.json
     {
       "schemaVersion": 2,
       "manifests": [
@@ -46,7 +46,7 @@ index: list
     }
   EOF
 
-  cat <<-EOF > oci-layout
+  cat <<-EOF | jq -c | tr -d '\n' > oci-layout
     {
       "imageLayoutVersion": "1.0.0"
     }
@@ -61,7 +61,7 @@ list: manifests
   amd64_size=$(stat -f %z manifest-amd64.json)
   arm64_digest=$(sha256sum < manifest-arm64.json | sed 's/  -//')
   arm64_size=$(stat -f %z manifest-arm64.json)
-  cat <<-EOF > manifest-list.json
+  cat <<-EOF | jq -c | tr -d '\n' > manifest-list.json
   {
     "schemaVersion": 2,
     "mediaType": "application/vnd.oci.image.index.v1+json",
@@ -95,7 +95,7 @@ manifests: layers
   platforms=(amd64 arm64)
   for arch in ${platforms[@]}; do
     diff_digest=$(gunzip < $arch.tar.gz | sha256sum | sed 's/  -//')
-    cat <<-EOF > config-$arch.json
+    cat <<-EOF | jq -c | tr -d '\n' > config-$arch.json
     {
       "architecture": "${arch}",
       "os": "linux",
@@ -114,30 +114,28 @@ manifests: layers
     config_size=$(stat -f %z config-$arch.json)
     layer_digest=$(sha256sum < $arch.tar.gz | sed 's/  -//')
     layer_size=$(stat -f %z $arch.tar.gz)
-    cat <<-EOF > manifest-$arch.json
-    [
-      {
-        "schemaVersion": 2,
+    cat <<-EOF | jq -c | tr -d '\n' > manifest-$arch.json
+    {
+      "schemaVersion": 2,
+      "mediaType": "application/vnd.oci.image.manifest.v1+json",
+      "config": {
         "mediaType": "application/vnd.oci.image.config.v1+json",
-        "config": {
-          "mediaType": "application/vnd.oci.image.config.v1+json",
-          "digest": "sha256:${config_digest}",
-          "size": ${config_size}
-        },
-        "layers": [
-          {
-            "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
-            "digest": "sha256:${layer_digest}",
-            "size": ${layer_size}
-          }
-        ]
-      }
-    ]
+        "digest": "sha256:${config_digest}",
+        "size": ${config_size}
+      },
+      "layers": [
+        {
+          "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+          "digest": "sha256:${layer_digest}",
+          "size": ${layer_size}
+        }
+      ]
+    }
   EOF
   done
 
 [private]
-layers: build
+layers: binaries
   #!/usr/bin/env bash
   platforms=(amd64 arm64)
   for arch in ${platforms[@]}; do
@@ -148,7 +146,7 @@ layers: build
   done
 
 [private]
-build:
+binaries:
   #!/usr/bin/env bash
   platforms=(amd64 arm64)
   for arch in ${platforms[@]}; do

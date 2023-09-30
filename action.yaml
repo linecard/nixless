@@ -1,22 +1,30 @@
 name: nixless
 description: What if you just derove?
 inputs:
+  go_version:
+    description: Go version
+    required: true
+    default: "1.21"
+  registry:
+    description: Registry URL
+    required: true
   image:
     description: Image name (includes registry)
     required: true
   tag:
     description: Image tag
     required: true
-  # platforms:
-  #   description: The platforms to build for
-  #   default: amd64,arm64
-  #   required: true
 runs:
   using: "composite"
   steps:
   - run: curl https://just.systems/install.sh | sudo bash -s -- --to /usr/local/bin
     shell: bash
-  - run: just build ${{ inputs.image }} ${{ inputs.tag }}
+  - run: |
+      sudo apt-get -y update
+      sudo apt-get -y install skopeo
     shell: bash
-  - run: just load ${{ inputs.image }} ${{ inputs.tag }}
+  - uses: actions/setup-go@v3
+    with:
+      go-version: ${{ inputs.go_version }}
+  - run: just publish ${{ inputs.registry}} ${{ inputs.image }} ${{ inputs.tag }}
     shell: bash
