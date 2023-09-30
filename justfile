@@ -32,7 +32,7 @@ index: list
   #!/usr/bin/env bash
   cd image
   list_digest=$(sha256sum < manifest-list.json | sed 's/  -//')
-  list_size=$(stat -f %z manifest-list.json)
+  list_size=$(stat -c %s manifest-list.json)
   cat <<-EOF | jq -c | tr -d '\n' > index.json
     {
       "schemaVersion": 2,
@@ -58,9 +58,9 @@ list: manifests
   #!/usr/bin/env bash
   cd image
   amd64_digest=$(sha256sum < manifest-amd64.json | sed 's/  -//')
-  amd64_size=$(stat -f %z manifest-amd64.json)
+  amd64_size=$(stat -c %s manifest-amd64.json)
   arm64_digest=$(sha256sum < manifest-arm64.json | sed 's/  -//')
-  arm64_size=$(stat -f %z manifest-arm64.json)
+  arm64_size=$(stat -c %s manifest-arm64.json)
   cat <<-EOF | jq -c | tr -d '\n' > manifest-list.json
   {
     "schemaVersion": 2,
@@ -111,9 +111,9 @@ manifests: layers
   EOF
 
     config_digest=$(sha256sum < config-$arch.json | sed 's/  -//')
-    config_size=$(stat -f %z config-$arch.json)
+    config_size=$(stat -c %s config-$arch.json)
     layer_digest=$(sha256sum < $arch.tar.gz | sed 's/  -//')
-    layer_size=$(stat -f %z $arch.tar.gz)
+    layer_size=$(stat -c %s $arch.tar.gz)
     cat <<-EOF | jq -c | tr -d '\n' > manifest-$arch.json
     {
       "schemaVersion": 2,
